@@ -1,0 +1,64 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'io.github.joaop'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+
+            pom {
+                name = 'CNPJ Alfanumérico'
+                description = 'Biblioteca Java para validação, formatação e geração de CNPJ alfanumérico (Receita Federal do Brasil)'
+                url = 'https://github.com/JohnPitter/cnpj-alfanumerico'
+
+                licenses {
+                    license {
+                        name = 'Apache License, Version 2.0'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                    }
+                }
+
+                developers {
+                    developer {
+                        name = 'João Pitter'
+                        url = 'https://github.com/JohnPitter'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/JohnPitter/cnpj-alfanumerico.git'
+                    developerConnection = 'scm:git:ssh://github.com/JohnPitter/cnpj-alfanumerico.git'
+                    url = 'https://github.com/JohnPitter/cnpj-alfanumerico'
+                }
+            }
+        }
+    }
+}
