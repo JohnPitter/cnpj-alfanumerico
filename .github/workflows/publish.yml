@@ -32,8 +32,13 @@ jobs:
       - name: Build & Test
         run: mvn clean verify --batch-mode --no-transfer-progress
 
+      - name: List GPG keys
+        run: gpg --list-secret-keys --keyid-format=long
+
       - name: Publish to Maven Central
-        run: mvn deploy -P release --batch-mode --no-transfer-progress
+        run: |
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep 'sec' | head -1 | sed 's/.*\/\([A-F0-9]*\) .*/\1/')
+          mvn deploy -P release -Dgpg.keyname="$GPG_KEY_ID" --batch-mode --no-transfer-progress
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
