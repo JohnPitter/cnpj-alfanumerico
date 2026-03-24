@@ -28,10 +28,9 @@ public final class CNPJBatchResult {
         this.alphanumericCount = 0;
     }
 
-    void addValid(String cnpj) {
-        valid.add(cnpj);
-        String cleaned = CNPJValidator.sanitize(cnpj);
-        if (CNPJValidator.isNumericOnly(cleaned)) {
+    void addValid(String sanitizedCnpj) {
+        valid.add(sanitizedCnpj);
+        if (CNPJValidator.isNumericOnly(sanitizedCnpj)) {
             numericCount++;
         } else {
             alphanumericCount++;
