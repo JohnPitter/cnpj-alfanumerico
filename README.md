@@ -250,9 +250,9 @@ public class EmpresaDTO {
 Validação programática:
 
 ```java
-import io.github.johnpitter.cnpj.validation.CNPJValidator;
+import io.github.johnpitter.cnpj.validation.CNPJConstraintValidator;
 
-boolean valid = CNPJValidator.isValid(dto.getCnpj()); // null → true
+boolean valid = CNPJConstraintValidator.isValid(dto.getCnpj()); // null → true
 ```
 
 ### Jackson (JSON)
@@ -394,7 +394,7 @@ cnpj-alfanumerico/
     BarcodeEncoding.java                           # Enum: CODE_128A, CODE_128C
     validation/
       CNPJ.java                                    # Annotation @CNPJ (Bean Validation)
-      CNPJValidator.java                           # Validador para @CNPJ
+      CNPJConstraintValidator.java                 # Validador para @CNPJ
     jackson/
       CNPJSerializer.java                          # Serialização (format)
       CNPJDeserializer.java                        # Deserialização (unformat)

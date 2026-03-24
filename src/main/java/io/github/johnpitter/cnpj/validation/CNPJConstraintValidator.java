@@ -7,18 +7,13 @@ package io.github.johnpitter.cnpj.validation;
  * jakarta.validation nem javax.validation diretamente.</p>
  *
  * <p>Para integração com Bean Validation, registre este validador
- * no seu framework de validação. Exemplo com Spring Boot:</p>
- *
- * <pre>{@code
- * // A annotation @CNPJ pode ser usada com um ConstraintValidator customizado
- * // que delega para CNPJValidator.isValid()
- * }</pre>
+ * no seu framework de validação.</p>
  *
  * @see io.github.johnpitter.cnpj.CNPJ#isValid(String)
  */
-public final class CNPJValidator {
+public final class CNPJConstraintValidator {
 
-    private CNPJValidator() {
+    private CNPJConstraintValidator() {
     }
 
     /**

@@ -28,6 +28,9 @@ public final class CNPJValidator {
     static final Pattern LEGACY_FORMATTED_PATTERN =
             Pattern.compile("^[0-9]{2}\\.[0-9]{3}\\.[0-9]{3}/[0-9]{4}-[0-9]{2}$");
 
+    /** Regex para base de 12 caracteres alfanuméricos. */
+    private static final Pattern ALPHANUM_12_PATTERN = Pattern.compile("^[A-Z0-9]{12}$");
+
     /** Pesos para cálculo dos dígitos verificadores. */
     private static final int[] WEIGHTS = {6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
 
@@ -112,7 +115,7 @@ public final class CNPJValidator {
 
         String upper = base12.toUpperCase();
 
-        if (!Pattern.matches("^[A-Z0-9]{12}$", upper)) {
+        if (!ALPHANUM_12_PATTERN.matcher(upper).matches()) {
             throw new CNPJException("Base do CNPJ deve conter apenas caracteres alfanuméricos (A-Z, 0-9)");
         }
 

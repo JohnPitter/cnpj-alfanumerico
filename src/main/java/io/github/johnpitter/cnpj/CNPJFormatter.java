@@ -32,11 +32,13 @@ public final class CNPJFormatter {
             throw new CNPJException("CNPJ deve ter 14 caracteres, recebido: " + cleaned.length());
         }
 
-        return cleaned.substring(0, 2) + "."
-                + cleaned.substring(2, 5) + "."
-                + cleaned.substring(5, 8) + "/"
-                + cleaned.substring(8, 12) + "-"
-                + cleaned.substring(12, 14);
+        StringBuilder sb = new StringBuilder(18);
+        sb.append(cleaned, 0, 2).append('.')
+          .append(cleaned, 2, 5).append('.')
+          .append(cleaned, 5, 8).append('/')
+          .append(cleaned, 8, 12).append('-')
+          .append(cleaned, 12, 14);
+        return sb.toString();
     }
 
     /**
