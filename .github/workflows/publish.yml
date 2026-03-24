@@ -21,8 +21,17 @@ jobs:
           server-id: central
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpg-connect-agent reloadagent /bye
+          echo "GPG keys imported:"
+          gpg --list-secret-keys --keyid-format=long
 
       - name: Set release version
         env:
@@ -32,12 +41,10 @@ jobs:
       - name: Build & Test
         run: mvn clean verify --batch-mode --no-transfer-progress
 
-      - name: List GPG keys
-        run: gpg --list-secret-keys --keyid-format=long
-
       - name: Publish to Maven Central
         run: |
-          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format=long | grep 'sec' | head -1 | sed 's/.*\/\([A-F0-9]*\) .*/\1/')
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format=long --with-colons | awk -F: '/^sec/{print $5; exit}')
+          echo "Signing with GPG key: $GPG_KEY_ID"
           mvn deploy -P release -Dgpg.keyname="$GPG_KEY_ID" --batch-mode --no-transfer-progress
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
