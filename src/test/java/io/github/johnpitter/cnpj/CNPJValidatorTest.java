@@ -1,4 +1,4 @@
-package io.github.joaop.cnpj;
+package io.github.johnpitter.cnpj;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

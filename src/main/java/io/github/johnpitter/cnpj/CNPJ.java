@@ -1,4 +1,4 @@
-package io.github.joaop.cnpj;
+package io.github.johnpitter.cnpj;
 
 import java.util.regex.Pattern;
 

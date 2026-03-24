@@ -1,4 +1,4 @@
-package io.github.joaop.cnpj;
+package io.github.johnpitter.cnpj;
 
 /**
  * Exceção lançada quando um CNPJ é inválido ou uma operação sobre CNPJ falha.

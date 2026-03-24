@@ -5,7 +5,7 @@
 **Validação, formatação e geração de CNPJ alfanumérico — uma dependência, tudo pronto.**
 
 [![Java](https://img.shields.io/badge/Java-8+-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.joaop/cnpj-alfanumerico?style=flat-square&color=blue)](https://central.sonatype.com/artifact/io.github.joaop/cnpj-alfanumerico)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.johnpitter/cnpj-alfanumerico?style=flat-square&color=blue)](https://central.sonatype.com/artifact/io.github.johnpitter/cnpj-alfanumerico)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/JohnPitter/cnpj-alfanumerico/ci.yml?style=flat-square)](https://github.com/JohnPitter/cnpj-alfanumerico/actions)
 
@@ -95,7 +95,7 @@ sequenceDiagram
 
 ```xml
 <dependency>
-    <groupId>io.github.joaop</groupId>
+    <groupId>io.github.johnpitter</groupId>
     <artifactId>cnpj-alfanumerico</artifactId>
     <version>1.0.0</version>
 </dependency>
@@ -104,19 +104,19 @@ sequenceDiagram
 **Gradle:**
 
 ```groovy
-implementation 'io.github.joaop:cnpj-alfanumerico:1.0.0'
+implementation 'io.github.johnpitter:cnpj-alfanumerico:1.0.0'
 ```
 
 **Gradle (Kotlin DSL):**
 
 ```kotlin
-implementation("io.github.joaop:cnpj-alfanumerico:1.0.0")
+implementation("io.github.johnpitter:cnpj-alfanumerico:1.0.0")
 ```
 
 ### 2. Use
 
 ```java
-import io.github.joaop.cnpj.CNPJ;
+import io.github.johnpitter.cnpj.CNPJ;
 
 // Validação — funciona com numérico e alfanumérico
 CNPJ.isValid("12.ABC.345/01DE-35");  // true
