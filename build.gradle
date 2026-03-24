@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
 }
 
-group = 'io.github.joaop'
+group = 'io.github.johnpitter'
 version = '1.0.0'
 
 java {

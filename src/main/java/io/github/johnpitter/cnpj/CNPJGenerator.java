@@ -1,4 +1,4 @@
-package io.github.joaop.cnpj;
+package io.github.johnpitter.cnpj;
 
 import java.security.SecureRandom;
 import java.util.Random;

@@ -1,4 +1,4 @@
-package io.github.joaop.cnpj;
+package io.github.johnpitter.cnpj;
 
 /**
  * Tipo do CNPJ baseado no seu conteúdo.
