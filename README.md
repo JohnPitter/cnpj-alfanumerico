@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/JohnPitter/cnpj-alfanumerico/ci.yml?style=flat-square)](https://github.com/JohnPitter/cnpj-alfanumerico/actions)
 
-[Funcionalidades](#-funcionalidades) · [Quick Start](#-quick-start) · [API](#-api-reference) · [Migração](#-guia-de-migração) · [Compatibilidade](#-compatibilidade)
+[Funcionalidades](#-funcionalidades) · [Quick Start](#-quick-start) · [API](#-api-reference) · [Migração](#-guia-de-migração) · [Integrações](#-integrações) · [Compatibilidade](#-compatibilidade)
 
 </div>
 
@@ -30,11 +30,19 @@ Adicione ao seu projeto e substitua sua validação atual — funciona tanto com
 | Categoria | O que você ganha |
 |---|---|
 | **Validação** | Valida CNPJ numérico (legado) e alfanumérico (novo) com algoritmo oficial Módulo 11 |
+| **Validação em Lote** | Valida coleções inteiras com resultado detalhado (válidos, inválidos, contagens por tipo) |
 | **Formatação** | Formata (`12ABC34501DE35` → `12.ABC.345/01DE-35`) e desformata |
 | **Cálculo de DVs** | Calcula dígitos verificadores a partir de 12 caracteres base |
 | **Classificação** | Detecta se é numérico ou alfanumérico, retorna tipo via enum |
+| **Comparação** | Compara CNPJs ignorando formato/case; detecta mesma empresa |
 | **Extração** | Decompõe em raiz (8), ordem (4) e DVs (2); verifica se é matriz |
+| **Listagem de Filiais** | Gera CNPJs completos para múltiplas filiais a partir da raiz |
 | **Geração** | Gera CNPJs válidos aleatórios para testes (alfanumérico e numérico) |
+| **Máscara LGPD** | Mascara CNPJs para exibição segura em logs e telas |
+| **Migração de Storage** | Detecta se CNPJ requer migração de coluna BIGINT → VARCHAR |
+| **Código de Barras** | Indica encoding correto (CODE-128A vs CODE-128C) |
+| **Bean Validation** | Annotation `@CNPJ` para validação em DTOs (JSR 380) |
+| **Jackson Support** | Serializer/Deserializer para integração com JSON |
 | **Regex Patterns** | Patterns compilados para validação em formulários e schemas |
 | **Zero Dependências** | Apenas Java puro — sem libs externas em runtime |
 
@@ -50,8 +58,15 @@ graph TB
         FACADE --> VALIDATOR["CNPJValidator<br/>Validação + Cálculo DVs"]
         FACADE --> FORMATTER["CNPJFormatter<br/>Format / Unformat"]
         FACADE --> GENERATOR["CNPJGenerator<br/>Geração para testes"]
+        FACADE --> BATCH["CNPJBatchResult<br/>Validação em Lote"]
         FACADE --> PARTS["CNPJParts<br/>Decomposição"]
         FACADE --> TYPE["CNPJType<br/>NUMERIC | ALPHANUMERIC"]
+        FACADE --> BARCODE["BarcodeEncoding<br/>CODE_128A | CODE_128C"]
+
+        subgraph Integrations["Integrações (opcional)"]
+            ANNOTATION["@CNPJ<br/>Bean Validation"]
+            JACKSON["Jackson<br/>Serializer / Deserializer"]
+        end
     end
 
     APP["Sua Aplicação"] --> FACADE
@@ -60,29 +75,12 @@ graph TB
     style VALIDATOR fill:#3B82F6,color:#fff,stroke:none
     style FORMATTER fill:#8B5CF6,color:#fff,stroke:none
     style GENERATOR fill:#10B981,color:#fff,stroke:none
+    style BATCH fill:#06B6D4,color:#fff,stroke:none
     style PARTS fill:#6366F1,color:#fff,stroke:none
     style TYPE fill:#EC4899,color:#fff,stroke:none
-```
-
-### Como funciona o algoritmo
-
-```mermaid
-sequenceDiagram
-    participant App as Aplicação
-    participant V as CNPJValidator
-
-    App->>V: isValid("12.ABC.345/01DE-35")
-    V->>V: Sanitiza → "12ABC34501DE35"
-    V->>V: Regex check [A-Z0-9]{12}[0-9]{2}
-    V->>V: Rejeita se todos iguais
-    V->>V: Extrai base 12: "12ABC34501DE"
-
-    Note over V: Conversão ASCII-48<br/>1→1, 2→2, A→17, B→18...
-
-    V->>V: DV1 = Σ(valor × peso) mod 11
-    V->>V: DV2 = Σ(valor × peso + DV1) mod 11
-    V->>V: Compara DVs calculados vs recebidos
-    V-->>App: true ✓
+    style BARCODE fill:#F59E0B,color:#fff,stroke:none
+    style ANNOTATION fill:#EF4444,color:#fff,stroke:none
+    style JACKSON fill:#84CC16,color:#fff,stroke:none
 ```
 
 ---
@@ -97,20 +95,20 @@ sequenceDiagram
 <dependency>
     <groupId>io.github.johnpitter</groupId>
     <artifactId>cnpj-alfanumerico</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
 **Gradle:**
 
 ```groovy
-implementation 'io.github.johnpitter:cnpj-alfanumerico:1.0.0'
+implementation 'io.github.johnpitter:cnpj-alfanumerico:1.1.0'
 ```
 
 **Gradle (Kotlin DSL):**
 
 ```kotlin
-implementation("io.github.johnpitter:cnpj-alfanumerico:1.0.0")
+implementation("io.github.johnpitter:cnpj-alfanumerico:1.1.0")
 ```
 
 ### 2. Use
@@ -121,35 +119,31 @@ import io.github.johnpitter.cnpj.CNPJ;
 // Validação — funciona com numérico e alfanumérico
 CNPJ.isValid("12.ABC.345/01DE-35");  // true
 CNPJ.isValid("11.222.333/0001-81");  // true (legado)
-CNPJ.isValid("12.ABC.345/01DE-99");  // false
-
-// Validação com exceção
-CNPJ.validate("12ABC34501DE35");  // OK
-CNPJ.validate("INVALIDO");        // → CNPJException
 
 // Formatação
 CNPJ.format("12ABC34501DE35");     // "12.ABC.345/01DE-35"
 CNPJ.unformat("12.ABC.345/01DE-35"); // "12ABC34501DE35"
 
-// Classificação
-CNPJ.isAlphanumeric("12ABC34501DE35");  // true
-CNPJ.isNumeric("11222333000181");       // true
-CNPJ.getType("12ABC34501DE35");         // CNPJType.ALPHANUMERIC
+// Comparação
+CNPJ.equals("12.ABC.345/01DE-35", "12abc34501de35"); // true
+CNPJ.isSameCompany(matrizCnpj, filialCnpj);          // true
 
-// Extração de partes
-CNPJ.getRoot("12ABC34501DE35");         // "12ABC345"
-CNPJ.getBranch("12ABC34501DE35");       // "01DE"
-CNPJ.getCheckDigits("12ABC34501DE35");  // "35"
-CNPJ.isHeadquarters("11222333000181");  // true
+// Máscara LGPD
+CNPJ.mask("12ABC34501DE35");       // "12.***.345/01DE-**"
+CNPJ.mask("12ABC34501DE35", 4);    // "12AB**********"
 
-// Geração para testes
-CNPJ.generate();                          // CNPJ alfanumérico aleatório
-CNPJ.generateNumeric();                   // CNPJ numérico aleatório
-CNPJ.generateFromParts("12ABC345", "0001"); // com raiz específica
-CNPJ.generateHeadquarters("12ABC345");   // matriz
+// Validação em lote
+CNPJBatchResult result = CNPJ.validateBatch(listaDeCnpjs);
+result.getValidCount();             // 150
+result.getAlphanumericCount();      // 3 — precisam de migração!
 
-// Cálculo de dígitos verificadores
-CNPJ.calculateCheckDigits("12ABC34501DE"); // "35"
+// Migração de storage
+CNPJ.requiresStorageMigration("12ABC34501DE35"); // true
+CNPJ.getMinColumnType("12ABC34501DE35");          // "CHAR(14)"
+CNPJ.getBarcodeEncoding("12ABC34501DE35");        // CODE_128A
+
+// Geração de filiais
+CNPJ.listBranches("12ABC345", Arrays.asList("0001", "0002", "01DE"));
 ```
 
 **Pronto.** Sem configuração, sem dependências externas.
@@ -165,6 +159,14 @@ CNPJ.calculateCheckDigits("12ABC34501DE"); // "35"
 | `CNPJ.isValid(String)` | `boolean` | Valida CNPJ (com ou sem formatação) |
 | `CNPJ.validate(String)` | `void` | Valida e lança `CNPJException` se inválido |
 | `CNPJ.calculateCheckDigits(String)` | `String` | Calcula os 2 DVs a partir de 12 caracteres base |
+| `CNPJ.validateBatch(Collection)` | `CNPJBatchResult` | Valida coleção com resultado detalhado |
+
+### Comparação
+
+| Método | Retorno | Descrição |
+|---|---|---|
+| `CNPJ.equals(String, String)` | `boolean` | Compara ignorando formato e case |
+| `CNPJ.isSameCompany(String, String)` | `boolean` | Mesma raiz = mesma empresa |
 
 ### Formatação
 
@@ -174,6 +176,8 @@ CNPJ.calculateCheckDigits("12ABC34501DE"); // "35"
 | `CNPJ.unformat(String)` | `String` | Remove máscara (14 chars, uppercase) |
 | `CNPJ.isFormatted(String)` | `boolean` | Verifica se está com máscara |
 | `CNPJ.isUnformatted(String)` | `boolean` | Verifica se está sem máscara |
+| `CNPJ.mask(String)` | `String` | Mascara para LGPD: `12.***.345/01DE-**` |
+| `CNPJ.mask(String, int)` | `String` | Mascara com N chars visíveis |
 
 ### Classificação
 
@@ -193,6 +197,14 @@ CNPJ.calculateCheckDigits("12ABC34501DE"); // "35"
 | `CNPJ.getCheckDigits(String)` | `String` | Dígitos verificadores (2 chars) |
 | `CNPJ.isHeadquarters(String)` | `boolean` | `true` se branch == "0001" (matriz) |
 
+### Migração e Storage
+
+| Método | Retorno | Descrição |
+|---|---|---|
+| `CNPJ.requiresStorageMigration(String)` | `boolean` | `true` se não cabe em BIGINT |
+| `CNPJ.getMinColumnType(String)` | `String` | `"BIGINT"` ou `"CHAR(14)"` |
+| `CNPJ.getBarcodeEncoding(String)` | `BarcodeEncoding` | `CODE_128C` ou `CODE_128A` |
+
 ### Geração (para testes)
 
 | Método | Retorno | Descrição |
@@ -204,6 +216,7 @@ CNPJ.calculateCheckDigits("12ABC34501DE"); // "35"
 | `CNPJ.generateFromParts(root, branch)` | `String` | Com raiz e ordem específicas |
 | `CNPJ.generateFromBase(base12)` | `String` | A partir dos 12 chars base |
 | `CNPJ.generateHeadquarters(root)` | `String` | Matriz (branch=0001) |
+| `CNPJ.listBranches(root, branches)` | `List<String>` | CNPJs para múltiplas filiais |
 
 ### Regex Patterns
 
@@ -213,6 +226,49 @@ CNPJ.calculateCheckDigits("12ABC34501DE"); // "35"
 | `CNPJ.getFormattedPattern()` | `XX.XXX.XXX/XXXX-XX` | CNPJ com formatação |
 | `CNPJ.getLegacyPattern()` | `[0-9]{14}` | CNPJ numérico (legado) |
 | `CNPJ.getLegacyFormattedPattern()` | `XX.XXX.XXX/XXXX-XX` | Numérico formatado |
+
+---
+
+## 🔗 Integrações
+
+### Bean Validation (`@CNPJ`)
+
+Annotation para validação automática em DTOs:
+
+```java
+import io.github.johnpitter.cnpj.validation.CNPJ;
+
+public class EmpresaDTO {
+    @CNPJ
+    private String cnpj;
+
+    @CNPJ(message = "CNPJ da filial inválido")
+    private String cnpjFilial;
+}
+```
+
+Validação programática:
+
+```java
+import io.github.johnpitter.cnpj.validation.CNPJValidator;
+
+boolean valid = CNPJValidator.isValid(dto.getCnpj()); // null → true
+```
+
+### Jackson (JSON)
+
+Serialize/deserialize CNPJs em APIs REST:
+
+```java
+import io.github.johnpitter.cnpj.jackson.CNPJSerializer;
+import io.github.johnpitter.cnpj.jackson.CNPJDeserializer;
+
+// Serialização: "12ABC34501DE35" → "12.ABC.345/01DE-35"
+String json = CNPJSerializer.serialize(cnpj);
+
+// Deserialização: "12.ABC.345/01DE-35" → "12ABC34501DE35"
+String clean = CNPJDeserializer.deserialize(jsonValue);
+```
 
 ---
 
@@ -232,18 +288,34 @@ boolean valid = cnpj.matches("\\d{14}");
 boolean valid = CNPJ.isValid(cnpj);
 ```
 
+### Auditoria em lote da base de dados
+
+```java
+// Valide toda a base de CNPJs de uma vez
+CNPJBatchResult result = CNPJ.validateBatch(todosOsCnpjs);
+
+System.out.println("Total: " + result.getTotal());
+System.out.println("Válidos: " + result.getValidCount());
+System.out.println("Inválidos: " + result.getInvalidCount());
+System.out.println("Alfanuméricos (migrar storage): " + result.getAlphanumericCount());
+
+// Detalhes dos inválidos
+result.getInvalid().forEach((cnpj, motivo) ->
+    System.out.println(cnpj + " → " + motivo));
+```
+
 ### Checklist de migração
 
-| Item | Ação |
-|---|---|
-| **Colunas no banco** | Alterar de `NUMERIC`/`BIGINT` para `CHAR(14)` ou `VARCHAR(14)` |
-| **Validação de input** | Substituir regex `\d{14}` por `CNPJ.isValid()` |
-| **Máscaras de input** | Aceitar letras A-Z nas 12 primeiras posições |
-| **Índices no banco** | Recriar índices em colunas CNPJ após alteração de tipo |
-| **Integrações** | Verificar se APIs parceiras aceitam formato alfanumérico |
-| **Relatórios** | Atualizar formatação para suportar letras |
-| **Código de barras** | Migrar de CODE-128C para CODE-128A |
-| **NF-e / NFC-e** | Atualizar schemas XML conforme NT 2025.001 |
+| Item | Ação | Ferramenta da lib |
+|---|---|---|
+| **Colunas no banco** | Alterar `BIGINT` para `CHAR(14)` | `CNPJ.requiresStorageMigration()` |
+| **Validação de input** | Substituir regex por `CNPJ.isValid()` | `CNPJ.isValid()` |
+| **Auditoria da base** | Validar todos os registros | `CNPJ.validateBatch()` |
+| **Máscaras de input** | Aceitar letras A-Z | `CNPJ.getPattern()` |
+| **Logs e telas** | Mascarar CNPJs (LGPD) | `CNPJ.mask()` |
+| **Código de barras** | Usar encoding correto | `CNPJ.getBarcodeEncoding()` |
+| **Comparação** | Ignorar formato/case | `CNPJ.equals()` |
+| **NF-e / NFC-e** | Atualizar schemas XML | NT 2025.001 |
 
 ---
 
@@ -307,24 +379,35 @@ CNPJ completo: 12.ABC.345/01DE-35 ✓
 
 ```
 cnpj-alfanumerico/
-  pom.xml                                    # Build Maven
-  build.gradle                               # Build Gradle
-  settings.gradle
+  pom.xml                                          # Build Maven
+  build.gradle                                     # Build Gradle
 
-  src/main/java/io/github/joaop/cnpj/
-    CNPJ.java                                # Fachada principal (API pública)
-    CNPJValidator.java                       # Validação + cálculo de DVs
-    CNPJFormatter.java                       # Formatação e desformatação
-    CNPJGenerator.java                       # Geração de CNPJs para testes
-    CNPJType.java                            # Enum: NUMERIC, ALPHANUMERIC
-    CNPJParts.java                           # Value object com partes do CNPJ
-    CNPJException.java                       # Exceção customizada
+  src/main/java/io/github/johnpitter/cnpj/
+    CNPJ.java                                      # Fachada principal (API pública)
+    CNPJValidator.java                             # Validação + cálculo de DVs
+    CNPJFormatter.java                             # Formatação e desformatação
+    CNPJGenerator.java                             # Geração de CNPJs para testes
+    CNPJBatchResult.java                           # Resultado de validação em lote
+    CNPJType.java                                  # Enum: NUMERIC, ALPHANUMERIC
+    CNPJParts.java                                 # Value object com partes do CNPJ
+    CNPJException.java                             # Exceção customizada
+    BarcodeEncoding.java                           # Enum: CODE_128A, CODE_128C
+    validation/
+      CNPJ.java                                    # Annotation @CNPJ (Bean Validation)
+      CNPJValidator.java                           # Validador para @CNPJ
+    jackson/
+      CNPJSerializer.java                          # Serialização (format)
+      CNPJDeserializer.java                        # Deserialização (unformat)
+      CNPJModule.java                              # Módulo Jackson
 
-  src/test/java/io/github/joaop/cnpj/
-    CNPJTest.java                            # Testes da fachada
-    CNPJValidatorTest.java                   # Testes de validação
-    CNPJFormatterTest.java                   # Testes de formatação
-    CNPJGeneratorTest.java                   # Testes de geração
+  src/test/java/io/github/johnpitter/cnpj/
+    CNPJTest.java                                  # Testes da fachada
+    CNPJValidatorTest.java                         # Testes de validação
+    CNPJFormatterTest.java                         # Testes de formatação
+    CNPJGeneratorTest.java                         # Testes de geração
+    CNPJNewFeaturesTest.java                       # Testes v1.1.0
+    validation/CNPJValidatorTest.java              # Testes Bean Validation
+    jackson/CNPJJacksonTest.java                   # Testes Jackson
 ```
 
 ---

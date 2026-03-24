@@ -1,5 +1,8 @@
 package io.github.johnpitter.cnpj;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -332,6 +335,175 @@ public final class CNPJ {
     public static Pattern getLegacyPattern() {
         return CNPJValidator.LEGACY_PATTERN;
     }
+
+    // ========================================================================
+    // Comparação e igualdade
+    // ========================================================================
+
+    /**
+     * Compara dois CNPJs ignorando formatação e case.
+     *
+     * @param cnpj1 primeiro CNPJ
+     * @param cnpj2 segundo CNPJ
+     * @return true se representam o mesmo CNPJ
+     */
+    public static boolean equals(String cnpj1, String cnpj2) {
+        if (cnpj1 == null || cnpj2 == null) return false;
+        return CNPJValidator.sanitize(cnpj1).equals(CNPJValidator.sanitize(cnpj2));
+    }
+
+    /**
+     * Verifica se dois CNPJs pertencem à mesma empresa (mesma raiz).
+     *
+     * @param cnpj1 primeiro CNPJ
+     * @param cnpj2 segundo CNPJ
+     * @return true se têm a mesma raiz (primeiros 8 caracteres)
+     */
+    public static boolean isSameCompany(String cnpj1, String cnpj2) {
+        if (cnpj1 == null || cnpj2 == null) return false;
+        return getRoot(cnpj1).equals(getRoot(cnpj2));
+    }
+
+    // ========================================================================
+    // Migração e compatibilidade de storage
+    // ========================================================================
+
+    /**
+     * Verifica se o CNPJ requer migração de colunas numéricas para VARCHAR.
+     *
+     * <p>Retorna true se o CNPJ contém letras e portanto não pode
+     * ser armazenado em colunas BIGINT/NUMERIC.</p>
+     *
+     * @param cnpj o CNPJ a ser verificado
+     * @return true se requer migração de storage
+     */
+    public static boolean requiresStorageMigration(String cnpj) {
+        return isAlphanumeric(cnpj);
+    }
+
+    /**
+     * Retorna o tipo mínimo de coluna SQL para armazenar o CNPJ.
+     *
+     * @param cnpj o CNPJ a ser verificado
+     * @return "BIGINT" para numéricos, "CHAR(14)" para alfanuméricos
+     */
+    public static String getMinColumnType(String cnpj) {
+        return isAlphanumeric(cnpj) ? "CHAR(14)" : "BIGINT";
+    }
+
+    // ========================================================================
+    // Máscara LGPD
+    // ========================================================================
+
+    /**
+     * Mascara um CNPJ para exibição segura (LGPD).
+     *
+     * <p>Formato padrão: {@code 12.***.345/****-**}</p>
+     *
+     * @param cnpj o CNPJ a ser mascarado (com ou sem formatação)
+     * @return CNPJ mascarado no formato XX.***.XXX/****-**
+     * @throws CNPJException se o CNPJ é inválido
+     */
+    public static String mask(String cnpj) {
+        String cleaned = CNPJFormatter.unformat(cnpj);
+        return cleaned.substring(0, 2) + ".***.***/" + cleaned.substring(8, 12) + "-**";
+    }
+
+    /**
+     * Mascara um CNPJ exibindo apenas os N primeiros caracteres.
+     *
+     * @param cnpj o CNPJ a ser mascarado (com ou sem formatação)
+     * @param visibleChars quantidade de caracteres visíveis no início (1-12)
+     * @return CNPJ parcialmente mascarado
+     * @throws CNPJException se o CNPJ é inválido ou visibleChars fora do range
+     */
+    public static String mask(String cnpj, int visibleChars) {
+        if (visibleChars < 1 || visibleChars > 12) {
+            throw new CNPJException("visibleChars deve estar entre 1 e 12, recebido: " + visibleChars);
+        }
+        String cleaned = CNPJFormatter.unformat(cnpj);
+        StringBuilder sb = new StringBuilder(14);
+        sb.append(cleaned, 0, visibleChars);
+        for (int i = visibleChars; i < 14; i++) {
+            sb.append('*');
+        }
+        return sb.toString();
+    }
+
+    // ========================================================================
+    // Validação em lote
+    // ========================================================================
+
+    /**
+     * Valida uma coleção de CNPJs e retorna resultado detalhado.
+     *
+     * @param cnpjs coleção de CNPJs a serem validados
+     * @return {@link CNPJBatchResult} com válidos, inválidos e contagens
+     */
+    public static CNPJBatchResult validateBatch(Collection<String> cnpjs) {
+        if (cnpjs == null) {
+            throw new CNPJException("Coleção de CNPJs não pode ser nula");
+        }
+        CNPJBatchResult result = new CNPJBatchResult();
+        for (String cnpj : cnpjs) {
+            try {
+                CNPJValidator.validate(cnpj);
+                result.addValid(CNPJValidator.sanitize(cnpj));
+            } catch (CNPJException e) {
+                result.addInvalid(cnpj, e.getMessage());
+            }
+        }
+        return result;
+    }
+
+    // ========================================================================
+    // Código de barras
+    // ========================================================================
+
+    /**
+     * Retorna o encoding de código de barras adequado para o CNPJ.
+     *
+     * <p>CNPJs numéricos usam CODE-128C (mais compacto).
+     * CNPJs alfanuméricos precisam de CODE-128A.</p>
+     *
+     * @param cnpj o CNPJ a ser verificado
+     * @return {@link BarcodeEncoding#CODE_128C} ou {@link BarcodeEncoding#CODE_128A}
+     */
+    public static BarcodeEncoding getBarcodeEncoding(String cnpj) {
+        if (cnpj == null) {
+            throw new CNPJException("CNPJ não pode ser nulo");
+        }
+        return isAlphanumeric(cnpj) ? BarcodeEncoding.CODE_128A : BarcodeEncoding.CODE_128C;
+    }
+
+    // ========================================================================
+    // Listagem de filiais
+    // ========================================================================
+
+    /**
+     * Gera CNPJs completos (com DVs) para uma lista de filiais a partir da raiz.
+     *
+     * @param root raiz do CNPJ (8 caracteres)
+     * @param branches lista de ordens de estabelecimento (4 caracteres cada)
+     * @return lista de CNPJs completos com dígitos verificadores calculados
+     */
+    public static List<String> listBranches(String root, Collection<String> branches) {
+        if (root == null || root.length() != 8) {
+            throw new CNPJException("Raiz do CNPJ deve ter exatamente 8 caracteres");
+        }
+        if (branches == null) {
+            throw new CNPJException("Lista de filiais não pode ser nula");
+        }
+        List<String> result = new ArrayList<String>(branches.size());
+        for (String branch : branches) {
+            result.add(CNPJGenerator.generateFromParts(root, branch));
+        }
+        return result;
+    }
+
+    // ========================================================================
+    // Regex patterns
+    // ========================================================================
 
     /**
      * Retorna o {@link Pattern} regex para CNPJ legado formatado.
